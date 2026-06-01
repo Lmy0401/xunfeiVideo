@@ -4,7 +4,9 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "start:hidden": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\start-hidden.ps1",
+    "stop:hidden": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\stop-hidden.ps1"
   },
   "dependencies": {
     "pinyin-pro": "^3.26.0"

@@ -33,6 +33,21 @@
             </div>
           </div>
 
+          <div class="task-tools">
+            <div class="field">
+              <label for="taskNameInput">任务名称</label>
+              <input id="taskNameInput" type="text" value="清新壁纸-聊天演示-01">
+            </div>
+            <div class="field">
+              <label for="taskSelect">已保存任务</label>
+              <select id="taskSelect">
+                <option value="">暂无保存任务</option>
+              </select>
+            </div>
+            <button id="saveTaskBtn" class="secondary-btn compact-btn" type="button">保存任务</button>
+            <button id="loadTaskBtn" class="secondary-btn compact-btn" type="button">加载任务</button>
+          </div>
+
           <div class="format-hint">
             <strong>输入格式</strong>
             <span>我方/对方：直接输入中文句子。</span>
@@ -95,6 +110,19 @@
                 <option value="candidate">候选词</option>
               </select>
             </div>
+
+            <div class="field output-field">
+              <label for="outputDirInput">视频输出文件夹</label>
+              <div class="path-row">
+                <input id="outputDirInput" type="text" value="recordings" placeholder="请选择本地文件夹">
+                <button id="selectOutputDirBtn" class="text-btn path-btn" type="button">选择文件夹</button>
+              </div>
+            </div>
+
+            <div class="field output-field">
+              <label for="videoNameInput">视频文件名</label>
+              <input id="videoNameInput" type="text" value="screenrecord.mp4" placeholder="例如 清新壁纸演示.mp4">
+            </div>
           </div>
 
           <div class="switch-row">
@@ -112,6 +140,7 @@
 
           <footer class="actions">
             <button id="runBtn" class="primary-btn" type="button">开始执行</button>
+            <button id="recordBtn" class="secondary-btn" type="button">录制并拉取视频</button>
           </footer>
         </section>
       </section>
@@ -127,6 +156,13 @@
             <button id="clearLogBtn" class="text-btn" type="button">清空</button>
           </div>
           <pre id="logOutput"></pre>
+        </div>
+        <div class="history-card">
+          <div class="log-head">
+            <span>最近录制</span>
+            <button id="refreshRecordingsBtn" class="text-btn" type="button">刷新</button>
+          </div>
+          <div id="recordingList" class="recording-list"></div>
         </div>
       </aside>
     </main>

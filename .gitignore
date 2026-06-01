@@ -23,4 +23,11 @@ Thumbs.db
 *.zip
 outputs/
 *.mp4
+recordings/
+.pull-tmp/
+console-settings.json
+console-tasks.json
+console-recordings.json
+console/console-server.pid
+console/console-server.*.log
 

@@ -58,7 +58,7 @@ select {
 .side-panel {
   padding: 18px;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(220px, 1fr) minmax(180px, 0.7fr);
   gap: 14px;
 }
 
@@ -118,6 +118,7 @@ h1 {
 .icon-btn,
 .text-btn,
 .primary-btn,
+.secondary-btn,
 .segment {
   border: 0;
   cursor: pointer;
@@ -152,6 +153,17 @@ h1 {
 .sequence-actions {
   display: flex;
   gap: 12px;
+}
+
+.task-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #fbfcfb;
 }
 
 .format-hint {
@@ -348,6 +360,10 @@ select:focus {
   margin: 18px 0;
 }
 
+.output-field {
+  grid-column: span 2;
+}
+
 .segmented {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -376,6 +392,25 @@ select:focus {
 .number-row span {
   color: var(--muted);
   font-size: 13px;
+}
+
+.path-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.path-btn {
+  min-width: 94px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  background: white;
+}
+
+.path-btn:disabled {
+  cursor: wait;
+  color: var(--muted);
+  background: #f1f4f3;
 }
 
 .switch-row {
@@ -431,23 +466,41 @@ select:focus {
 
 .actions {
   display: flex;
+  gap: 12px;
   justify-content: flex-end;
   border-top: 1px solid var(--line);
   padding-top: 18px;
 }
 
-.primary-btn {
+.primary-btn,
+.secondary-btn {
   height: 46px;
   min-width: 160px;
   padding: 0 20px;
-  background: var(--accent);
-  color: white;
   font-weight: 800;
 }
 
-.primary-btn:disabled {
+.compact-btn {
+  min-width: 96px;
+}
+
+.primary-btn {
+  background: var(--accent);
+  color: white;
+}
+
+.secondary-btn {
+  border: 1px solid var(--accent);
+  background: white;
+  color: var(--accent-deep);
+}
+
+.primary-btn:disabled,
+.secondary-btn:disabled {
   cursor: wait;
   background: #8da59f;
+  border-color: #8da59f;
+  color: white;
 }
 
 .text-btn {
@@ -470,7 +523,8 @@ select:focus {
   line-height: 1.2;
 }
 
-.log-card {
+.log-card,
+.history-card {
   min-height: 0;
   border: 1px solid var(--line);
   display: grid;
@@ -493,6 +547,39 @@ pre {
   line-height: 1.55;
 }
 
+.recording-list {
+  min-height: 0;
+  overflow: auto;
+  padding: 10px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.recording-item {
+  border: 1px solid var(--line);
+  background: #fbfcfb;
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.recording-item strong {
+  font-size: 13px;
+}
+
+.recording-meta,
+.recording-path {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  word-break: break-all;
+}
+
+.recording-item button {
+  justify-self: start;
+}
+
 @media (max-width: 900px) {
   .shell {
     width: calc(100vw - 24px);
@@ -501,6 +588,14 @@ pre {
   }
 
   .controls-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .output-field {
+    grid-column: 1 / -1;
+  }
+
+  .task-tools {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -528,5 +623,13 @@ pre {
   .row-send,
   .row-actions {
     grid-column: 1 / -1;
+  }
+
+  .path-row {
+    grid-template-columns: 1fr;
+  }
+
+  .task-tools {
+    grid-template-columns: 1fr;
   }
 }
