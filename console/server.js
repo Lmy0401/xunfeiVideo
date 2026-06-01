@@ -84,13 +84,79 @@ function textToKeys(text) {
   }).join("").toLowerCase().replace(/[^a-z]/g, "");
 }
 
+function repeatKeySequence(keys, repeatCount) {
+  const count = Math.max(1, Math.min(30, Number(repeatCount || 1)));
+  return Array.from({ length: count }, () => keys).join("");
+}
+
+function getKeyTokens(value) {
+  const tokens = [];
+  let index = 0;
+  const source = String(value || "");
+  while (index < source.length) {
+    if (source[index] === "{") {
+      const end = source.indexOf("}", index + 1);
+      if (end > index) {
+        tokens.push(source.slice(index + 1, end).toLowerCase());
+        index = end + 1;
+        continue;
+      }
+    }
+    tokens.push(source[index].toLowerCase());
+    index++;
+  }
+  return tokens;
+}
+
+function applyKeySequenceToDraft(draft, keys) {
+  const punctuation = {
+    question: "？",
+    "?": "？",
+    "？": "？",
+    exclamation: "！",
+    "!": "！",
+    "！": "！",
+    comma: "，",
+    ",": "，",
+    "，": "，",
+    period: "。",
+    ".": "。",
+    "。": "。",
+    chineseperiod: "。",
+    slash: "/",
+    "/": "/",
+    at: "@",
+    "@": "@",
+    ellipsis: "...",
+    "...": "...",
+    tilde: "~",
+    "~": "~",
+    colon: ":",
+    ":": ":",
+    dash: "-",
+    "-": "-"
+  };
+
+  let result = draft;
+  for (const token of getKeyTokens(keys)) {
+    if (["backspace", "delete", "del", "bksp"].includes(token)) {
+      result = result.slice(0, -1);
+    } else if (token === "space") {
+      result += " ";
+    } else if (punctuation[token]) {
+      result += punctuation[token];
+    }
+  }
+  return result;
+}
+
 async function sendAppScript(scriptObject) {
   const script = JSON.stringify(scriptObject);
   const scriptBase64 = Buffer.from(script, "utf8").toString("base64");
   return runCommand(ADB_PATH, ["shell", "am", "start", "-n", "com.xunfei.video.showcase/.MainActivity", "--es", "scriptBase64", scriptBase64]);
 }
 
-async function runPlayback({ text, keys, layout, delayMs, commitDelayMs, startDelayMs, visualCandidateIndex, finalSource, ensureIme, sendAfterCommit }) {
+async function runPlayback({ text, keys, layout, delayMs, commitDelayMs, startDelayMs, visualCandidateIndex, finalSource, ensureIme, sendAfterCommit, appendCommitText }) {
   const candidateIndex = Number(visualCandidateIndex || 0);
   const keyOnly = finalSource === "none";
   const useCandidateText = finalSource === "candidate";
@@ -115,12 +181,18 @@ async function runPlayback({ text, keys, layout, delayMs, commitDelayMs, startDe
 
   if (keyOnly) {
     // Key playback only. Used for effects such as backspace, symbol, space, or cursor demos.
+    if (sendAfterCommit !== false) {
+      args.push("-SendAfterCommit");
+    }
   } else if (useCandidateText) {
     if (sendAfterCommit !== false) {
       args.push("-SendAfterCommit");
     }
   } else {
     args.push("-CommitText", text, "-CommitDelayMs", String(commitDelayMs));
+    if (appendCommitText) {
+      args.push("-AppendCommitText");
+    }
     if (sendAfterCommit !== false) {
       args.push("-SendAfterCommit");
     }
@@ -159,9 +231,9 @@ async function handleApi(req, res) {
     const text = String(body.text || "").trim();
     const keys = String(body.keys || textToKeys(text)).trim().toLowerCase().replace(/[^a-z]/g, "");
     const layout = body.layout === "nine" ? "nine" : "qwerty";
-    const delayMs = Number(body.delayMs || 120);
-    const commitDelayMs = Number(body.commitDelayMs || 220);
-    const startDelayMs = Number(body.startDelayMs || 450);
+    const delayMs = Number(body.delayMs || 10);
+    const commitDelayMs = Number(body.commitDelayMs || 20);
+    const startDelayMs = Number(body.startDelayMs || 20);
     const visualCandidateIndex = Number(body.visualCandidateIndex ?? body.candidateIndex ?? 0);
     const finalSource = body.finalSource === "candidate" ? "candidate" : "commit";
 
@@ -194,13 +266,15 @@ async function handleApi(req, res) {
     const body = await readJson(req);
     const messages = Array.isArray(body.messages) ? body.messages : [];
     const layout = body.layout === "nine" ? "nine" : "qwerty";
-    const delayMs = Number(body.delayMs || 120);
-    const commitDelayMs = Number(body.commitDelayMs || 220);
-    const startDelayMs = Number(body.startDelayMs || 450);
+    const delayMs = Number(body.delayMs || 10);
+    const commitDelayMs = Number(body.commitDelayMs || 20);
+    const startDelayMs = Number(body.startDelayMs || 20);
     const gapMs = Number(body.gapMs || 650);
     const visualCandidateIndex = Number(body.visualCandidateIndex ?? body.candidateIndex ?? 0);
     const finalSource = body.finalSource === "candidate" ? "candidate" : "commit";
     const logs = [];
+    let draftHasText = false;
+    let draftText = "";
 
     if (!messages.length) {
       sendJson(res, 400, { code: 1, stderr: "messages are required" });
@@ -213,7 +287,13 @@ async function handleApi(req, res) {
       const text = String(item.text || "").trim();
       if (!text) continue;
 
-      logs.push(`${i + 1}. ${side === "other" ? "对方" : side === "keys" ? "按键" : "我方"}: ${text}`);
+      const itemSendAfterCommit = side === "mine" ? item.sendAfterCommit !== false : side === "keys" ? item.sendAfterCommit === true : false;
+      const nextItem = messages.slice(i + 1).find(next => String(next.text || "").trim());
+      const pauseAfterItem = nextItem && nextItem.side === "keys" ? 0 : gapMs;
+      const actorLabel = side === "other"
+        ? "对方"
+        : side === "keys" ? `按键${itemSendAfterCommit ? "（按后发送）" : ""}` : `我方${itemSendAfterCommit ? "" : "（不发送）"}`;
+      logs.push(`${i + 1}. ${actorLabel}: ${text}`);
 
       if (side === "other") {
         const result = await sendAppScript({
@@ -226,33 +306,63 @@ async function handleApi(req, res) {
           sendJson(res, 500, { ...result, logs });
           return;
         }
-        await sleep(gapMs);
+        await sleep(pauseAfterItem);
       } else if (side === "keys") {
+        const repeatCount = Math.max(1, Math.min(30, Number(item.repeatCount || 1)));
+        const repeatedKeys = repeatKeySequence(text, repeatCount);
+        logs[logs.length - 1] = `${logs[logs.length - 1]} x${repeatCount}`;
         const result = await runPlayback({
           text: "",
-          keys: text,
+          keys: repeatedKeys,
           layout,
           delayMs,
           commitDelayMs,
-          startDelayMs,
+          startDelayMs: i === 0 ? startDelayMs : 0,
           visualCandidateIndex: 0,
           finalSource: "none",
-          ensureIme: body.ensureIme,
+          ensureIme: i === 0 ? body.ensureIme : false,
           sendAfterCommit: false
         });
         if (result.code !== 0) {
           sendJson(res, 500, { ...result, logs });
           return;
         }
-        await sleep(gapMs);
+        draftText = applyKeySequenceToDraft(draftText, repeatedKeys);
+        if (itemSendAfterCommit && body.sendAfterCommit !== false) {
+          const sendResult = await sendAppScript({
+            actions: [
+              { type: "commitText", text: draftText },
+              { type: "wait", duration: commitDelayMs },
+              { type: "send" }
+            ]
+          });
+          if (sendResult.code !== 0) {
+            sendJson(res, 500, { ...sendResult, logs });
+            return;
+          }
+          draftText = "";
+        } else {
+          const syncResult = await sendAppScript({
+            actions: [
+              { type: "commitText", text: draftText }
+            ]
+          });
+          if (syncResult.code !== 0) {
+            sendJson(res, 500, { ...syncResult, logs });
+            return;
+          }
+        }
+        draftHasText = draftText.length > 0;
+        await sleep(pauseAfterItem);
       } else {
         const keys = String(item.keys || textToKeys(text)).toLowerCase().replace(/[^a-z]/g, "");
         if (!keys) {
           sendJson(res, 400, { code: 1, stderr: `message ${i + 1} keys could not be generated`, logs });
           return;
         }
+        const committedText = draftHasText && finalSource !== "candidate" ? `${draftText}${text}` : text;
         const result = await runPlayback({
-          text,
+          text: committedText,
           keys,
           layout,
           delayMs,
@@ -261,13 +371,20 @@ async function handleApi(req, res) {
           visualCandidateIndex,
           finalSource,
           ensureIme: body.ensureIme,
-          sendAfterCommit: body.sendAfterCommit
+          sendAfterCommit: itemSendAfterCommit && body.sendAfterCommit !== false,
+          appendCommitText: false
         });
         if (result.code !== 0) {
           sendJson(res, 500, { ...result, keys, logs });
           return;
         }
-        await sleep(gapMs);
+        if (itemSendAfterCommit && body.sendAfterCommit !== false) {
+          draftText = "";
+        } else {
+          draftText = committedText;
+        }
+        draftHasText = draftText.length > 0;
+        await sleep(pauseAfterItem);
       }
     }
 

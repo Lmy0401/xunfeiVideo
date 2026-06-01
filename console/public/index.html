@@ -33,6 +33,14 @@
             </div>
           </div>
 
+          <div class="format-hint">
+            <strong>输入格式</strong>
+            <span>我方/对方：直接输入中文句子。</span>
+            <span>按键：输入字母、中文标点或 token，如 <code>{backspace}</code>、<code>{space}</code>、<code>？</code>、<code>！</code>、<code>，</code>、<code>。</code>。</span>
+            <span>26键符号：也可写 <code>{question}</code>、<code>{exclamation}</code>、<code>{comma}</code>、<code>{period}</code>，会按中文符号页坐标输入。</span>
+            <span>组合示例：<code>{backspace}！{abc}</code>，次数表示整段按键重复执行。</span>
+          </div>
+
           <div id="messageList" class="message-list"></div>
 
           <div class="controls-grid">
@@ -47,7 +55,7 @@
             <div class="field">
               <label for="delayInput">按键间隔</label>
               <div class="number-row">
-                <input id="delayInput" type="number" min="40" max="800" step="10" value="120">
+                <input id="delayInput" type="number" min="0" max="800" step="10" value="10">
                 <span>ms</span>
               </div>
             </div>
@@ -55,7 +63,7 @@
             <div class="field">
               <label for="commitDelayInput">提交间隔</label>
               <div class="number-row">
-                <input id="commitDelayInput" type="number" min="0" max="2000" step="20" value="220">
+                <input id="commitDelayInput" type="number" min="0" max="2000" step="10" value="20">
                 <span>ms</span>
               </div>
             </div>
@@ -63,7 +71,7 @@
             <div class="field">
               <label for="startDelayInput">开打前等待</label>
               <div class="number-row">
-                <input id="startDelayInput" type="number" min="0" max="3000" step="50" value="450">
+                <input id="startDelayInput" type="number" min="0" max="3000" step="10" value="20">
                 <span>ms</span>
               </div>
             </div>

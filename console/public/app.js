@@ -19,10 +19,10 @@ const layoutButtons = [...document.querySelectorAll("[data-layout]")];
 
 let currentLayout = "qwerty";
 let messages = [
-  { side: "mine", text: "今天换了一个新的壁纸" },
-  { side: "keys", text: "{backspace}" },
+  { side: "mine", text: "今天换了一个新的壁纸", sendAfterCommit: false },
+  { side: "keys", text: "{backspace}", repeatCount: 1 },
   { side: "other", text: "看起来很清新" },
-  { side: "mine", text: "打字的时候还有动态效果" }
+  { side: "mine", text: "打字的时候还有动态效果", sendAfterCommit: true }
 ];
 
 function log(message) {
@@ -56,6 +56,14 @@ function renderMessages() {
         <option value="keys"${item.side === "keys" ? " selected" : ""}>按键</option>
       </select>
       <textarea class="message-text" rows="2" spellcheck="false" placeholder="${item.side === "keys" ? "例如 {backspace}{space}{symbol}" : "输入消息内容"}">${escapeHtml(item.text)}</textarea>
+      <label class="row-repeat ${item.side === "keys" ? "" : "disabled"}" title="按键行会把当前按键序列重复执行指定次数">
+        <span>次数</span>
+        <input type="number" min="1" max="30" step="1" value="${Number(item.repeatCount || 1)}" ${item.side === "keys" ? "" : "disabled"}>
+      </label>
+      <label class="row-send ${item.side === "mine" || item.side === "keys" ? "" : "disabled"}" title="我方可只输入不发送；按键可在执行后发送当前输入框内容">
+        <input type="checkbox" ${item.sendAfterCommit === true || (item.side === "mine" && item.sendAfterCommit !== false) ? "checked" : ""} ${item.side === "mine" || item.side === "keys" ? "" : "disabled"}>
+        <span>${item.side === "keys" ? "按后发送" : "发送本条"}</span>
+      </label>
       <div class="row-actions">
         <button type="button" data-action="up" title="上移">↑</button>
         <button type="button" data-action="down" title="下移">↓</button>
@@ -65,10 +73,22 @@ function renderMessages() {
 
     row.querySelector(".side-select").addEventListener("change", event => {
       messages[index].side = event.target.value;
+      if (messages[index].side === "mine") {
+        messages[index].sendAfterCommit = messages[index].sendAfterCommit !== false;
+      } else if (messages[index].side === "keys") {
+        messages[index].sendAfterCommit = false;
+        messages[index].repeatCount = Number(messages[index].repeatCount || 1);
+      }
       renderMessages();
     });
     row.querySelector(".message-text").addEventListener("input", event => {
       messages[index].text = event.target.value;
+    });
+    row.querySelector(".row-send input").addEventListener("change", event => {
+      messages[index].sendAfterCommit = event.target.checked;
+    });
+    row.querySelector(".row-repeat input").addEventListener("input", event => {
+      messages[index].repeatCount = Math.max(1, Math.min(30, Number(event.target.value || 1)));
     });
     row.querySelectorAll("[data-action]").forEach(button => {
       button.addEventListener("click", () => handleRowAction(index, button.dataset.action));
@@ -115,7 +135,12 @@ async function refreshDevices() {
 
 function collectMessages() {
   return messages
-    .map(item => ({ side: item.side, text: item.text.trim() }))
+    .map(item => ({
+      side: item.side,
+      text: item.text.trim(),
+      repeatCount: item.side === "keys" ? Math.max(1, Math.min(30, Number(item.repeatCount || 1))) : 1,
+      sendAfterCommit: item.side === "mine" ? item.sendAfterCommit !== false : item.side === "keys" ? item.sendAfterCommit === true : false
+    }))
     .filter(item => item.text);
 }
 
@@ -141,7 +166,10 @@ async function runTask() {
   flowLabel.textContent = "执行中";
   log(`开始执行 ${payload.messages.length} 条消息`);
   payload.messages.forEach((item, index) => {
-    log(`${index + 1}. ${item.side === "mine" ? "我方" : item.side === "other" ? "对方" : "按键"}：${item.text}`);
+    const label = item.side === "mine"
+      ? `我方${item.sendAfterCommit ? "" : "（不发送）"}`
+      : item.side === "other" ? "对方" : `按键×${item.repeatCount}${item.sendAfterCommit ? "（按后发送）" : ""}`;
+    log(`${index + 1}. ${label}：${item.text}`);
   });
   log(payload.visualCandidateIndex > 0
     ? `候选词效果：点击第 ${payload.visualCandidateIndex} 个候选词`
@@ -175,7 +203,7 @@ layoutButtons.forEach(button => {
 });
 
 addMineBtn.addEventListener("click", () => {
-  messages.push({ side: "mine", text: "" });
+  messages.push({ side: "mine", text: "", sendAfterCommit: true });
   renderMessages();
 });
 addOtherBtn.addEventListener("click", () => {
@@ -183,7 +211,7 @@ addOtherBtn.addEventListener("click", () => {
   renderMessages();
 });
 addKeysBtn.addEventListener("click", () => {
-  messages.push({ side: "keys", text: "{backspace}" });
+  messages.push({ side: "keys", text: "{backspace}", repeatCount: 1, sendAfterCommit: false });
   renderMessages();
 });
 refreshBtn.addEventListener("click", refreshDevices);

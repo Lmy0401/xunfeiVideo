@@ -394,9 +394,8 @@ public class MainActivity extends Activity {
     private void executeScriptAction(List<ScriptAction> actions, int index, int runId) {
         if (runId != scriptRunId) return;
         if (index >= actions.size()) {
-            input.setText("");
             scriptRunning = false;
-            reportScriptStatus("completed", "actions=" + actions.size());
+            reportScriptStatus("completed", "actions=" + actions.size() + ", inputLength=" + input.length());
             return;
         }
 
@@ -418,6 +417,11 @@ public class MainActivity extends Activity {
             case "commitText":
                 focusInput();
                 commitText(action.text);
+                scheduleScriptStep(() -> executeScriptAction(actions, index + 1, runId), 180);
+                break;
+            case "appendText":
+                focusInput();
+                appendText(action.text);
                 scheduleScriptStep(() -> executeScriptAction(actions, index + 1, runId), 180);
                 break;
             case "delete":
@@ -469,6 +473,13 @@ public class MainActivity extends Activity {
 
     private void commitText(String text) {
         input.setText(text == null ? "" : text);
+        input.setSelection(input.length());
+    }
+
+    private void appendText(String text) {
+        if (text != null && !text.isEmpty()) {
+            input.getText().append(text);
+        }
         input.setSelection(input.length());
     }
 

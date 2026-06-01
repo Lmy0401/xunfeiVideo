@@ -9,6 +9,7 @@ param(
     [int]$CandidateIndex = 0,
     [switch]$TapAppSend,
     [string]$CommitText,
+    [switch]$AppendCommitText,
     [switch]$SendAfterCommit,
     [int]$CommitDelayMs = 220,
     [int]$StartDelayMs = 450,
@@ -70,6 +71,30 @@ $qwertySpecialCenters = @{
 }
 
 $specialCenters = if ($Layout -eq "qwerty") { $qwertySpecialCenters } else { $nineSpecialCenters }
+
+# QWERTY punctuation is on the IME symbol page. The script switches to that
+# page once, then taps calibrated symbol cells on the current fixed test device.
+$qwertySymbolPageCenters = @{
+    "exclamation" = @(105, 1745); "!" = @(105, 1745)
+    "question" = @(785, 1745); "?" = @(785, 1745)
+    "period" = @(105, 2150); "." = @(105, 2150)
+    "comma" = @(560, 2015); "," = @(560, 2015)
+    "slash" = @(105, 2015); "/" = @(105, 2015)
+    "at" = @(560, 1880); "@" = @(560, 1880)
+    "ellipsis" = @(335, 1745); "..." = @(335, 1745)
+    "tilde" = @(335, 2150); "~" = @(335, 2150)
+    "colon" = @(560, 2150); ":" = @(560, 2150)
+    "dash" = @(785, 2150); "-" = @(785, 2150)
+    "chineseperiod" = @(105, 2150);
+    "backtosymbolhome" = @(1000, 2150); "abc" = @(1000, 2150); "letters" = @(1000, 2150)
+}
+$qwertySymbolPageCenters[[string][char]0xFF01] = @(105, 1745)
+$qwertySymbolPageCenters[[string][char]0xFF1F] = @(785, 1745)
+$qwertySymbolPageCenters[[string][char]0xFF0C] = @(560, 2015)
+$qwertySymbolPageCenters[[string][char]0x3002] = @(105, 2150)
+
+$isQwertySymbolPage = $false
+$shouldReturnQwertyLetters = $false
 
 function Invoke-Tap($x, $y) {
     & $AdbPath shell input tap $x $y | Out-Null
@@ -144,9 +169,29 @@ foreach ($key in Get-KeyTokens $Keys) {
         continue
     }
 
+    if ($Layout -eq "qwerty" -and $qwertySymbolPageCenters.ContainsKey($key)) {
+        if (-not $isQwertySymbolPage) {
+            $symbolPoint = $qwertySpecialCenters["symbol"]
+            Invoke-Tap $symbolPoint[0] $symbolPoint[1]
+            Start-Sleep -Milliseconds ($DelayMs * 2)
+            $isQwertySymbolPage = $true
+            $shouldReturnQwertyLetters = $true
+        }
+
+        $point = $qwertySymbolPageCenters[$key]
+        Invoke-Tap $point[0] $point[1]
+        if ($key -eq "abc" -or $key -eq "letters" -or $key -eq "backtosymbolhome") {
+            $isQwertySymbolPage = $false
+        }
+        continue
+    }
+
     if ($specialCenters.ContainsKey($key)) {
         $point = $specialCenters[$key]
         Invoke-Tap $point[0] $point[1]
+        if ($Layout -eq "qwerty" -and ($key -eq "symbol" -or $key -eq "symbols")) {
+            $isQwertySymbolPage = $true
+        }
         continue
     }
 
@@ -168,10 +213,17 @@ if ($CandidateIndex -gt 0) {
     Start-Sleep -Milliseconds $CommitDelayMs
 }
 
+if ($shouldReturnQwertyLetters -and $isQwertySymbolPage) {
+    $point = $qwertySymbolPageCenters["abc"]
+    Invoke-Tap $point[0] $point[1]
+    $isQwertySymbolPage = $false
+}
+
 if ($CommitText) {
+    $commitActionType = if ($AppendCommitText) { "appendText" } else { "commitText" }
     $actions = @(
         @{
-            type = "commitText"
+            type = $commitActionType
             text = $CommitText
         },
         @{

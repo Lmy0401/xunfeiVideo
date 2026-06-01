@@ -154,6 +154,32 @@ h1 {
   gap: 12px;
 }
 
+.format-hint {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid #cfd9df;
+  background: #f9fbfb;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.format-hint strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.format-hint code {
+  padding: 1px 5px;
+  border: 1px solid #d9e0e5;
+  background: white;
+  color: var(--accent-deep);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+}
+
 .message-list {
   display: grid;
   gap: 10px;
@@ -162,7 +188,7 @@ h1 {
 
 .message-row {
   display: grid;
-  grid-template-columns: 34px 88px minmax(0, 1fr) 104px;
+  grid-template-columns: 34px 88px minmax(0, 1fr) 76px 92px 104px;
   gap: 10px;
   align-items: stretch;
   padding: 10px;
@@ -199,6 +225,50 @@ h1 {
   padding: 10px;
   font-size: 16px;
   line-height: 1.35;
+}
+
+.row-repeat,
+.row-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 58px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.row-send input {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+}
+
+.row-repeat {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row-repeat input {
+  width: 56px;
+  height: 28px;
+  padding: 0 6px;
+  text-align: center;
+}
+
+.row-repeat span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.row-repeat.disabled,
+.row-send.disabled {
+  color: var(--muted);
+  background: #f1f4f3;
 }
 
 .row-actions {
@@ -454,6 +524,8 @@ pre {
   }
 
   .message-text,
+  .row-repeat,
+  .row-send,
   .row-actions {
     grid-column: 1 / -1;
   }
