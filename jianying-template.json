@@ -37,13 +37,13 @@
     }
   ],
   "bgm": {
-    "enabled": true,
+    "enabled": false,
     "id": "7546546694282676275",
     "volume": 0.25
   },
   "sfx": [
     {
-      "enabled": true,
+      "enabled": false,
       "name": "intro",
       "id": "7330113401856724239",
       "start": "1s",

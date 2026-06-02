@@ -55,6 +55,13 @@ def seconds_expr(seconds):
     return f"{max(0.0, seconds):.3f}s"
 
 
+def existing_path(path):
+    if not path:
+        return None
+    candidate = Path(path)
+    return candidate if candidate.exists() else None
+
+
 def main():
     parser = argparse.ArgumentParser(description="Create a JianYing draft from a recorded video.")
     parser.add_argument("--video", required=True)
@@ -92,6 +99,19 @@ def main():
         )
         video_segment = project.add_media_safe(str(video_path), start_time="0s", track_name="VideoTrack")
         video_duration_s = duration_to_seconds(getattr(getattr(video_segment, "target_timerange", None), "duration", 0))
+
+        def add_downloaded_cloud_audio(asset_id, start_time, duration, track_name):
+            local_path = existing_path(project.cloud_manager.download_asset(asset_id))
+            if local_path is None:
+                local_path = existing_path(project.cloud_manager.download_asset(asset_id, force=True))
+            if local_path is None:
+                return None
+            return project.add_audio_safe(
+                str(local_path),
+                start_time=start_time,
+                duration=duration,
+                track_name=track_name,
+            )
 
         added_video_assets = []
         failed_video_assets = []
@@ -174,26 +194,33 @@ def main():
             )
 
         bgm_config = template.get("bgm") or {}
+        failed_audio_assets = []
         if bgm_config.get("enabled", False) and bgm_config.get("id") and video_duration_s > 0:
-            bgm = project.add_cloud_music(
-                str(bgm_config["id"]),
+            bgm_asset_id = str(bgm_config["id"])
+            bgm = add_downloaded_cloud_audio(
+                bgm_asset_id,
                 start_time="0s",
                 duration=seconds_expr(video_duration_s),
                 track_name="BGM",
             )
-            if bgm is not None and bgm_config.get("volume") is not None:
+            if bgm is None:
+                failed_audio_assets.append(bgm_asset_id)
+            elif bgm_config.get("volume") is not None:
                 bgm.volume = float(bgm_config["volume"])
 
         for item in template.get("sfx") or []:
             if item.get("enabled", True) is False or not item.get("id"):
                 continue
-            sfx = project.add_cloud_music(
-                str(item["id"]),
+            sfx_asset_id = str(item["id"])
+            sfx = add_downloaded_cloud_audio(
+                sfx_asset_id,
                 start_time=item.get("start") or "0s",
                 duration=item.get("duration"),
                 track_name="SFX",
             )
-            if sfx is not None and item.get("volume") is not None:
+            if sfx is None:
+                failed_audio_assets.append(sfx_asset_id)
+            elif item.get("volume") is not None:
                 sfx.volume = float(item["volume"])
 
         save_result = project.save()
@@ -210,6 +237,7 @@ def main():
             durationSeconds=video_duration_s,
             addedVideoAssets=added_video_assets,
             failedVideoAssets=failed_video_assets,
+            failedAudioAssets=failed_audio_assets,
         )
         return 0
     except Exception as error:

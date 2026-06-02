@@ -642,6 +642,10 @@ async function createJianyingDraft(localPath, runId, taskName) {
     if (failedVideoAssets.length) {
       log(`视频素材添加失败：${failedVideoAssets.join(", ")}。通常是剪映素材 URL 过期，需要刷新素材库。`);
     }
+    const failedAudioAssets = result.parsed?.data?.failedAudioAssets || [];
+    if (failedAudioAssets.length) {
+      log(`音频素材添加失败：${failedAudioAssets.join(", ")}。已跳过这些素材，避免剪映提示媒体丢失。`);
+    }
     await loadRecentRecordings();
   } catch (error) {
     log(`生成剪映草稿失败：${error.message}`);
