@@ -1,0 +1,54 @@
+{
+  "canvas": {
+    "width": 1080,
+    "height": 1920
+  },
+  "title": {
+    "enabled": true,
+    "text": "这是标题",
+    "start": "1s",
+    "duration": "1s",
+    "animation": "复古打字机",
+    "positionX": 0,
+    "positionY": 0,
+    "scale": 0.8
+  },
+  "ending": {
+    "enabled": true,
+    "text": "更多输入法皮肤效果展示",
+    "duration": "1s",
+    "animation": "向右擦除",
+    "positionX": 0,
+    "positionY": 0,
+    "scale": 0.8
+  },
+  "videoAssets": [
+    {
+      "enabled": false,
+      "name": "overlay",
+      "id": "6969198370221018382",
+      "start": "0s",
+      "duration": "1s",
+      "trackName": "VideoMaterial",
+      "positionX": 0,
+      "positionY": 0,
+      "scale": 1,
+      "volume": 0.6
+    }
+  ],
+  "bgm": {
+    "enabled": true,
+    "id": "7546546694282676275",
+    "volume": 0.25
+  },
+  "sfx": [
+    {
+      "enabled": true,
+      "name": "intro",
+      "id": "7330113401856724239",
+      "start": "1s",
+      "duration": "1.5s",
+      "volume": 0.45
+    }
+  ]
+}

@@ -8,11 +8,17 @@ const ROOT = path.resolve(__dirname, "..");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const ADB_PATH = process.env.ADB_PATH || "D:\\Develop\\platform-tools\\adb.exe";
 const PLAYBACK_SCRIPT = path.join(ROOT, "tools", "ime-tap-playback.ps1");
+const SCRCPY_PATH = process.env.SCRCPY_PATH || findScrcpyPath();
+const JY_SKILL_ROOT = process.env.JY_SKILL_ROOT || path.join(ROOT, ".pull-tmp", "jianying-editor-skill");
+const JY_PYTHON_PATH = process.env.JY_PYTHON_PATH || path.join(ROOT, ".pull-tmp", "jy-skill-venv", "Scripts", "python.exe");
+const JY_PROJECTS_ROOT = process.env.JY_PROJECTS_ROOT || "C:\\Users\\22914\\AppData\\Local\\JianyingPro\\User Data\\Projects\\com.lveditor.draft";
+const JY_FFPROBE_DIR = process.env.JY_FFPROBE_DIR || "D:\\EVCapture";
 const RECORDINGS_DIR = path.join(ROOT, "recordings");
 const PULL_TMP_DIR = path.join(ROOT, ".pull-tmp");
 const SETTINGS_FILE = path.join(ROOT, "console-settings.json");
 const TASKS_FILE = path.join(ROOT, "console-tasks.json");
 const HISTORY_FILE = path.join(ROOT, "console-recordings.json");
+const JY_TEMPLATE_FILE = path.join(ROOT, "jianying-template.json");
 const PORT = Number(process.env.PORT || 5177);
 
 const mimeTypes = {
@@ -78,6 +84,26 @@ function runCommand(command, args, options = {}) {
   });
 }
 
+function findScrcpyPath() {
+  const toolsDir = path.join(ROOT, "tools");
+  const directPath = path.join(toolsDir, "scrcpy.exe");
+  if (fs.existsSync(directPath)) {
+    return directPath;
+  }
+  try {
+    const entry = fs.readdirSync(toolsDir, { withFileTypes: true })
+      .filter(item => item.isDirectory() && item.name.toLowerCase().includes("scrcpy"))
+      .map(item => path.join(toolsDir, item.name, "scrcpy.exe"))
+      .find(candidate => fs.existsSync(candidate));
+    if (entry) {
+      return entry;
+    }
+  } catch (error) {
+    // Missing tools directory is fine; adb screenrecord remains the fallback.
+  }
+  return "scrcpy";
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -98,7 +124,7 @@ function makeRunId() {
 
 function readJsonFile(filePath, fallback) {
   try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+    return JSON.parse(fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, ""));
   } catch (error) {
     return fallback;
   }
@@ -109,14 +135,108 @@ function writeJsonFile(filePath, data) {
   return data;
 }
 
+function parseCsvLine(line) {
+  const result = [];
+  let current = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === "\"") {
+      if (quoted && line[i + 1] === "\"") {
+        current += "\"";
+        i += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === "," && !quoted) {
+      result.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+function inferAssetAccess(row) {
+  const text = Object.values(row).join(" ").toLowerCase();
+  if (/(^|\b)(vip|svip|premium|paid)(\b|$)|会员|付费/.test(text)) {
+    return "vip";
+  }
+  if (/(^|\b)free(\b|$)|免费|限免/.test(text)) {
+    return "free";
+  }
+  return "unknown";
+}
+
+function readJianyingAssetCsv(fileName) {
+  const filePath = path.join(JY_SKILL_ROOT, "data", fileName);
+  if (!fs.existsSync(filePath)) {
+    return [];
+  }
+  const lines = fs.readFileSync(filePath, "utf8")
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && !line.startsWith("#"));
+  if (lines.length < 2) {
+    return [];
+  }
+  const headers = parseCsvLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const cells = parseCsvLine(line);
+    const row = {};
+    headers.forEach((header, index) => {
+      row[header] = cells[index] || "";
+    });
+    const id = row.id || row.music_id || row.effect_id || row.identifier || "";
+    const name = row.name || row.title || row.name_hint || id;
+    const rawDuration = Number(row.duration_s || row.duration || 0);
+    const duration = fileName === "cloud_video_assets.csv" && rawDuration > 60
+      ? rawDuration / 1000
+      : rawDuration;
+    return {
+      id,
+      name,
+      duration,
+      categories: row.categories || row.type || "",
+      accessLevel: inferAssetAccess(row),
+      url: row.url || "",
+      source: fileName
+    };
+  }).filter(item => item.id && item.name && (fileName !== "cloud_video_assets.csv" || item.url));
+}
+
+function readJianyingAssets(type) {
+  if (type === "sfx") {
+    return readJianyingAssetCsv("cloud_sound_effects.csv");
+  }
+  if (type === "music") {
+    return readJianyingAssetCsv("cloud_music_library.csv");
+  }
+  if (type === "video") {
+    return readJianyingAssetCsv("cloud_video_assets.csv");
+  }
+  if (type === "text-animation") {
+    return readJianyingAssetCsv("text_animations.csv");
+  }
+  return [];
+}
+
 function readSettings() {
-  return readJsonFile(SETTINGS_FILE, { outputDir: "recordings" });
+  const settings = readJsonFile(SETTINGS_FILE, { outputDir: "recordings" });
+  return {
+    ...settings,
+    outputDir: cleanOutputDir(settings.outputDir, "recordings")
+  };
 }
 
 function writeSettings(nextSettings) {
   const settings = {
     ...readSettings(),
-    ...nextSettings
+    ...nextSettings,
+    outputDir: cleanOutputDir(nextSettings.outputDir ?? readSettings().outputDir, "recordings")
   };
   return writeJsonFile(SETTINGS_FILE, settings);
 }
@@ -168,6 +288,16 @@ function appendRecordingHistory(recording) {
   return nextHistory;
 }
 
+function updateRecordingHistory(runId, patch) {
+  if (!runId) {
+    return readRecordingHistory();
+  }
+  const history = readRecordingHistory();
+  const nextHistory = history.map(item => item.runId === runId ? { ...item, ...patch } : item);
+  writeJsonFile(HISTORY_FILE, nextHistory);
+  return nextHistory;
+}
+
 function safePathName(value, fallback) {
   return String(value || fallback || "untitled").trim()
     .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
@@ -175,8 +305,17 @@ function safePathName(value, fallback) {
     .trim() || fallback || "untitled";
 }
 
+function cleanOutputDir(value, fallback = "recordings") {
+  const cleaned = String(value || "")
+    .replace(/\(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\)\s+\[[^\]]+\].*$/s, "")
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .find(Boolean);
+  return cleaned || fallback;
+}
+
 function resolveRecordingDir(outputDir, taskName) {
-  const rawOutputDir = String(outputDir || "").trim();
+  const rawOutputDir = cleanOutputDir(outputDir, "");
   const baseDir = rawOutputDir
     ? path.resolve(ROOT, rawOutputDir)
     : RECORDINGS_DIR;
@@ -211,6 +350,29 @@ function moveFileAcrossDevices(sourcePath, targetPath) {
   }
 }
 
+function inspectMp4Tracks(filePath) {
+  try {
+    const data = fs.readFileSync(filePath);
+    const countToken = token => {
+      const needle = Buffer.from(token);
+      let count = 0;
+      let index = 0;
+      while ((index = data.indexOf(needle, index)) !== -1) {
+        count += 1;
+        index += needle.length;
+      }
+      return count;
+    };
+    return {
+      hasMoov: data.indexOf(Buffer.from("moov")) >= 0,
+      videoTracks: countToken("vide"),
+      audioTracks: countToken("soun")
+    };
+  } catch (error) {
+    return { hasMoov: false, videoTracks: 0, audioTracks: 0 };
+  }
+}
+
 async function selectOutputDir(initialDir) {
   const fallbackDir = path.resolve(ROOT, String(initialDir || readSettings().outputDir || "recordings"));
   const script = [
@@ -224,10 +386,10 @@ async function selectOutputDir(initialDir) {
     "}"
   ].join("; ");
 
-  const result = await runCommand("powershell", ["-NoProfile", "-STA", "-WindowStyle", "Normal", "-Command", script], {
-    windowsHide: false
+  const result = await runCommand("powershell", ["-NoProfile", "-STA", "-WindowStyle", "Hidden", "-Command", script], {
+    windowsHide: true
   });
-  const selectedPath = result.stdout.trim();
+  const selectedPath = cleanOutputDir(result.stdout, "");
   if (result.code === 0 && selectedPath) {
     writeSettings({ outputDir: selectedPath });
   }
@@ -250,6 +412,60 @@ function openFolder(folderPath) {
       resolve({ code: 0, stdout: "", stderr: "" });
     });
   });
+}
+
+async function createJianyingDraft(body) {
+  const videoPath = path.resolve(ROOT, String(body.localPath || body.videoPath || ""));
+  if (!fs.existsSync(videoPath)) {
+    return { code: 1, stderr: `video not found: ${videoPath}` };
+  }
+
+  const runId = String(body.runId || "").trim();
+  const baseName = safePathName(body.taskName || path.basename(videoPath, path.extname(videoPath)), "XunfeiVideo");
+  const projectName = safePathName(body.projectName || `${baseName}-${makeRunId()}`, "XunfeiVideo");
+  const args = [
+    path.join(ROOT, "scripts", "create_jianying_draft.py"),
+    "--video", videoPath,
+    "--name", projectName,
+    "--title", String(body.title || body.taskName || "").trim(),
+    "--draft-root", JY_PROJECTS_ROOT,
+    "--template", path.join(ROOT, "jianying-template.json"),
+    "--overwrite"
+  ];
+
+  const env = {
+    ...process.env,
+    PYTHONIOENCODING: "utf-8",
+    JY_SKILL_ROOT,
+    JY_PROJECTS_ROOT,
+    PATH: fs.existsSync(JY_FFPROBE_DIR) ? `${JY_FFPROBE_DIR};${process.env.PATH}` : process.env.PATH
+  };
+  const result = await runCommand(JY_PYTHON_PATH, args, { env });
+  let parsed = null;
+  const jsonLine = String(result.stdout || "").split(/\r?\n/).reverse().find(line => line.trim().startsWith("{"));
+  if (jsonLine) {
+    try {
+      parsed = JSON.parse(jsonLine);
+    } catch (error) {
+      parsed = null;
+    }
+  }
+  const draft = parsed?.data?.draft || "";
+  if (result.code === 0 && draft) {
+    updateRecordingHistory(runId, {
+      jianyingDraft: {
+        projectName,
+        draftPath: draft,
+        createdAt: new Date().toISOString()
+      }
+    });
+  }
+  return {
+    ...result,
+    parsed,
+    projectName,
+    draftPath: draft
+  };
 }
 
 
@@ -535,6 +751,58 @@ function startScreenRecord(remotePath) {
   return { child, closed };
 }
 
+function estimateRecordLimitSeconds(body) {
+  const messages = Array.isArray(body.messages) ? body.messages : [];
+  const delayMs = Number(body.delayMs || 10);
+  const startDelayMs = Number(body.startDelayMs || 20);
+  const commitDelayMs = Number(body.commitDelayMs || 20);
+  const gapMs = Number(body.gapMs || 650);
+  const prerollMs = Number(body.recordPrerollMs || 800);
+  const postrollMs = Number(body.recordPostrollMs || 1000);
+  const sequenceMs = messages.reduce((total, item, index) => {
+    const text = String(item.text || "");
+    const repeatCount = item.side === "keys" ? Math.max(1, Math.min(30, Number(item.repeatCount || 1))) : 1;
+    const keyCount = item.side === "other" ? 0 : (item.side === "keys" ? getKeyTokens(text).length * repeatCount : textToKeys(text).length);
+    const startupMs = index === 0 ? startDelayMs : 0;
+    return total + startupMs + keyCount * delayMs + commitDelayMs + gapMs + 2500;
+  }, 0);
+  const requested = Number(body.recordTimeLimitSeconds || body.recordTimeLimitSec || 0);
+  if (requested > 0) {
+    return Math.max(3, Math.ceil(requested));
+  }
+  return Math.max(8, Math.ceil((prerollMs + sequenceMs + postrollMs + 5000) / 1000));
+}
+
+function startScrcpyRecord(localPath, timeLimitSeconds) {
+  fs.mkdirSync(path.dirname(localPath), { recursive: true });
+  const args = [
+    "--no-window",
+    "--no-playback",
+    "--require-audio",
+    "--audio-source=playback",
+    "--audio-dup",
+    "--time-limit", String(timeLimitSeconds),
+    "--record", localPath
+  ];
+  const child = spawn(SCRCPY_PATH, args, {
+    cwd: ROOT,
+    windowsHide: true
+  });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", chunk => {
+    stdout += chunk.toString();
+  });
+  child.stderr.on("data", chunk => {
+    stderr += chunk.toString();
+  });
+  const closed = new Promise(resolve => {
+    child.on("error", error => resolve({ code: -1, stdout, stderr: error.message }));
+    child.on("close", code => resolve({ code, stdout, stderr }));
+  });
+  return { child, closed, timeLimitSeconds };
+}
+
 async function stopScreenRecord(recording) {
   if (!recording || recording.child.killed) {
     return { code: 0, stdout: "", stderr: "" };
@@ -554,6 +822,28 @@ async function stopScreenRecord(recording) {
   return Promise.race([recording.closed, timeout]);
 }
 
+async function stopScrcpyRecord(recording) {
+  if (!recording || recording.child.killed) {
+    return { code: 0, stdout: "", stderr: "" };
+  }
+
+  const waitMs = (Number(recording.timeLimitSeconds || 0) * 1000) + 8000;
+  const timeout = sleep(Math.max(8000, waitMs)).then(() => {
+    if (!recording.child.killed) {
+      recording.child.kill("SIGTERM");
+    }
+    return { code: 124, stdout: "", stderr: "scrcpy time-limit stop timeout" };
+  });
+  return Promise.race([recording.closed, timeout]);
+}
+
+async function waitForEarlyExit(recording, ms = 1200) {
+  return Promise.race([
+    recording.closed,
+    sleep(ms).then(() => null)
+  ]);
+}
+
 async function recordSequence(body) {
   const messages = Array.isArray(body.messages) ? body.messages : [];
   if (!messages.length) {
@@ -570,6 +860,7 @@ async function recordSequence(body) {
   const tempPullPath = path.join(PULL_TMP_DIR, `${runId}.mp4`);
   const logs = [`录制任务 ${runId}`];
   let recording = null;
+  let useScrcpy = false;
 
   fs.mkdirSync(runDir, { recursive: true });
   fs.mkdirSync(PULL_TMP_DIR, { recursive: true });
@@ -587,20 +878,43 @@ async function recordSequence(body) {
   logs.push("录制前已清屏");
 
   await runCommand(ADB_PATH, ["shell", "rm", "-f", remotePath]);
-  recording = startScreenRecord(remotePath);
-  logs.push(`开始录屏: ${remotePath}`);
+  const scrcpyCheck = await runCommand(SCRCPY_PATH, ["--version"]);
+  useScrcpy = scrcpyCheck.code === 0;
+  const scrcpyTimeLimitSeconds = useScrcpy ? estimateRecordLimitSeconds(body) : 0;
+  recording = useScrcpy ? startScrcpyRecord(localPath, scrcpyTimeLimitSeconds) : startScreenRecord(remotePath);
+  logs.push(useScrcpy ? `开始录屏: ${localPath}` : `开始录屏: ${remotePath}`);
+  logs.push(useScrcpy
+    ? `Start scrcpy recording with audio: ${localPath} (${scrcpyTimeLimitSeconds}s)`
+    : `Start adb screenrecord without audio: ${remotePath}`);
   await sleep(Number(body.recordPrerollMs || 800));
+  const earlyExit = await waitForEarlyExit(recording);
+  if (earlyExit) {
+    return {
+      ...earlyExit,
+      code: earlyExit.code === 0 ? 1 : earlyExit.code,
+      stdout: logs.filter(Boolean).join("\n"),
+      stderr: earlyExit.stderr || earlyExit.stdout || "recording process exited before playback",
+      runId,
+      runDir,
+      localPath
+    };
+  }
 
   const sequenceResult = await executeSequence(body);
   logs.push(sequenceResult.stdout || sequenceResult.logs?.join("\n") || "");
   await sleep(Number(body.recordPostrollMs || 1000));
 
-  const stopResult = await stopScreenRecord(recording);
-  logs.push("录屏已停止，正在拉取文件");
-  await sleep(800);
+  const stopResult = useScrcpy ? await stopScrcpyRecord(recording) : await stopScreenRecord(recording);
+  logs.push(useScrcpy ? "scrcpy 录屏已停止" : "录屏已停止，正在拉取文件");
+  if (!useScrcpy) {
+    await sleep(800);
+  }
 
-  const pullResult = await runCommand(ADB_PATH, ["pull", remotePath, tempPullPath]);
-  await runCommand(ADB_PATH, ["shell", "rm", "-f", remotePath]);
+  let pullResult = { code: 0, stdout: "", stderr: "" };
+  if (!useScrcpy) {
+    pullResult = await runCommand(ADB_PATH, ["pull", remotePath, tempPullPath]);
+    await runCommand(ADB_PATH, ["shell", "rm", "-f", remotePath]);
+  }
 
   if (sequenceResult.code !== 0) {
     return { ...sequenceResult, stdout: logs.filter(Boolean).join("\n"), stopResult, pullResult, runId, runDir, localPath };
@@ -609,14 +923,35 @@ async function recordSequence(body) {
     return { ...pullResult, stdout: logs.filter(Boolean).join("\n"), stopResult, runId, runDir, localPath };
   }
 
-  moveFileAcrossDevices(tempPullPath, localPath);
+  if (!useScrcpy) {
+    moveFileAcrossDevices(tempPullPath, localPath);
+  }
+  if (!fs.existsSync(localPath)) {
+    return {
+      code: 1,
+      stdout: logs.filter(Boolean).join("\n"),
+      stderr: useScrcpy
+        ? `scrcpy did not create output file: ${localPath}`
+        : `recording file was not created: ${localPath}`,
+      stopResult,
+      pullResult,
+      runId,
+      runDir,
+      localPath
+    };
+  }
   const stats = fs.statSync(localPath);
+  const mediaTracks = inspectMp4Tracks(localPath);
+  logs.push(mediaTracks.audioTracks > 0
+    ? `Audio track detected: ${mediaTracks.audioTracks}`
+    : "Audio track not detected");
   appendRecordingHistory({
     runId,
     taskName,
     runDir,
     localPath,
-    sizeBytes: stats.size
+    sizeBytes: stats.size,
+    mediaTracks
   });
   return {
     code: 0,
@@ -627,6 +962,7 @@ async function recordSequence(body) {
     localPath,
     remotePath,
     sizeBytes: stats.size,
+    mediaTracks,
     stopResult,
     pullResult
   };
@@ -654,6 +990,28 @@ async function handleApi(req, res) {
 
   if (req.method === "GET" && req.url === "/api/settings") {
     sendJson(res, 200, readSettings());
+    return;
+  }
+
+  if (req.method === "GET" && req.url === "/api/jianying-template") {
+    sendJson(res, 200, readJsonFile(JY_TEMPLATE_FILE, {}));
+    return;
+  }
+
+  if (req.method === "GET" && req.url.startsWith("/api/jianying-assets")) {
+    const url = new URL(req.url, "http://localhost");
+    const type = url.searchParams.get("type") || "music";
+    const query = String(url.searchParams.get("q") || "").trim().toLowerCase();
+    const assets = readJianyingAssets(type)
+      .filter(item => !query || item.name.toLowerCase().includes(query) || item.id.includes(query))
+      .slice(0, 300);
+    sendJson(res, 200, { assets });
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/api/jianying-template") {
+    const body = await readJson(req);
+    sendJson(res, 200, writeJsonFile(JY_TEMPLATE_FILE, body));
     return;
   }
 
@@ -755,6 +1113,13 @@ async function handleApi(req, res) {
   if (req.method === "POST" && req.url === "/api/record-sequence") {
     const body = await readJson(req);
     const result = await recordSequence(body);
+    sendJson(res, result.code === 0 ? 200 : 500, result);
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/api/create-jianying-draft") {
+    const body = await readJson(req);
+    const result = await createJianyingDraft(body);
     sendJson(res, result.code === 0 ? 200 : 500, result);
     return;
   }

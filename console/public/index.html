@@ -138,6 +138,194 @@
             </label>
           </div>
 
+          <details class="template-panel" open>
+            <summary>剪映模板</summary>
+            <div class="template-toolbar">
+              <label class="switch">
+                <input id="templateFreeOnly" type="checkbox">
+                <span></span>
+                只显示免费素材
+              </label>
+            </div>
+            <div class="template-sections">
+              <section class="template-group">
+                <div class="template-group-head">
+                  <label class="switch template-toggle">
+                    <input id="templateTitleEnabled" type="checkbox">
+                    <span></span>
+                    标题
+                  </label>
+                </div>
+                <div class="template-group-grid">
+                  <div class="field wide-field">
+                    <label for="templateTitleText">标题文字</label>
+                    <input id="templateTitleText" type="text" placeholder="留空则使用任务名">
+                  </div>
+                  <div class="field">
+                    <label for="templateTitleAnimation">标题动画</label>
+                    <select id="templateTitleAnimation">
+                      <option value="复古打字机">复古打字机</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="templateTitlePositionX">位置 X</label>
+                    <input id="templateTitlePositionX" type="number" min="-1" max="1" step="0.05" value="0">
+                  </div>
+                  <div class="field">
+                    <label for="templateTitlePosition">位置 Y</label>
+                    <input id="templateTitlePosition" type="number" min="-1" max="1" step="0.05" value="0">
+                  </div>
+                  <div class="field">
+                    <label for="templateTitleScale">缩放</label>
+                    <input id="templateTitleScale" type="number" min="0.1" max="3" step="0.05" value="0.8">
+                  </div>
+                  <div class="field">
+                    <label for="templateTitleStart">开始</label>
+                    <input id="templateTitleStart" type="text" value="0.5s">
+                  </div>
+                  <div class="field">
+                    <label for="templateTitleDuration">时长</label>
+                    <input id="templateTitleDuration" type="text" value="2.5s">
+                  </div>
+                </div>
+              </section>
+
+              <section class="template-group">
+                <div class="template-group-head">
+                  <label class="switch template-toggle">
+                    <input id="templateVideoEnabled" type="checkbox">
+                    <span></span>
+                    视频素材
+                  </label>
+                </div>
+                <div class="template-group-grid">
+                  <div class="field wide-field">
+                    <label for="templateVideoId">素材</label>
+                    <select id="templateVideoId"></select>
+                  </div>
+                  <div class="field">
+                    <label for="templateVideoStart">开始</label>
+                    <input id="templateVideoStart" type="text" value="0.2s">
+                  </div>
+                  <div class="field">
+                    <label for="templateVideoDuration">时长</label>
+                    <input id="templateVideoDuration" type="text" value="2s">
+                  </div>
+                  <div class="field">
+                    <label for="templateVideoTrackName">轨道</label>
+                    <input id="templateVideoTrackName" type="text" value="VideoMaterial">
+                  </div>
+                  <div class="field">
+                    <label for="templateVideoPositionX">位置 X</label>
+                    <input id="templateVideoPositionX" type="number" min="-1" max="1" step="0.05" value="0">
+                  </div>
+                  <div class="field">
+                    <label for="templateVideoPosition">位置 Y</label>
+                    <input id="templateVideoPosition" type="number" min="-1" max="1" step="0.05" value="0">
+                  </div>
+                  <div class="field">
+                    <label for="templateVideoScale">缩放</label>
+                    <input id="templateVideoScale" type="number" min="0.1" max="3" step="0.05" value="1">
+                  </div>
+                  <div class="field">
+                    <label for="templateVideoVolume">素材音量</label>
+                    <input id="templateVideoVolume" type="number" min="0" max="1" step="0.05" value="0">
+                  </div>
+                </div>
+              </section>
+
+              <section class="template-group">
+                <div class="template-group-head">
+                  <label class="switch template-toggle">
+                    <input id="templateBgmEnabled" type="checkbox">
+                    <span></span>
+                    背景音乐
+                  </label>
+                </div>
+                <div class="template-group-grid">
+                  <div class="field wide-field">
+                    <label for="templateBgmId">素材</label>
+                    <select id="templateBgmId"></select>
+                  </div>
+                  <div class="field">
+                    <label for="templateBgmVolume">音量</label>
+                    <input id="templateBgmVolume" type="number" min="0" max="1" step="0.05" value="0.25">
+                  </div>
+                </div>
+              </section>
+
+              <section class="template-group">
+                <div class="template-group-head">
+                  <label class="switch template-toggle">
+                    <input id="templateSfxEnabled" type="checkbox">
+                    <span></span>
+                    音效
+                  </label>
+                </div>
+                <div class="template-group-grid">
+                  <div class="field wide-field">
+                    <label for="templateSfxId">素材</label>
+                    <select id="templateSfxId"></select>
+                  </div>
+                  <div class="field">
+                    <label for="templateSfxStart">开始</label>
+                    <input id="templateSfxStart" type="text" value="0.8s">
+                  </div>
+                  <div class="field">
+                    <label for="templateSfxDuration">时长</label>
+                    <input id="templateSfxDuration" type="text" value="1s">
+                  </div>
+                  <div class="field">
+                    <label for="templateSfxVolume">音量</label>
+                    <input id="templateSfxVolume" type="number" min="0" max="1" step="0.05" value="0.45">
+                  </div>
+                </div>
+              </section>
+
+              <section class="template-group">
+                <div class="template-group-head">
+                  <label class="switch template-toggle">
+                    <input id="templateEndingEnabled" type="checkbox">
+                    <span></span>
+                    结尾
+                  </label>
+                </div>
+                <div class="template-group-grid">
+                  <div class="field wide-field">
+                    <label for="templateEndingText">结尾文字</label>
+                    <input id="templateEndingText" type="text">
+                  </div>
+                  <div class="field">
+                    <label for="templateEndingAnimation">结尾动画</label>
+                    <select id="templateEndingAnimation">
+                      <option value="复古打字机">复古打字机</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="templateEndingPositionX">位置 X</label>
+                    <input id="templateEndingPositionX" type="number" min="-1" max="1" step="0.05" value="0">
+                  </div>
+                  <div class="field">
+                    <label for="templateEndingPosition">位置 Y</label>
+                    <input id="templateEndingPosition" type="number" min="-1" max="1" step="0.05" value="0">
+                  </div>
+                  <div class="field">
+                    <label for="templateEndingScale">缩放</label>
+                    <input id="templateEndingScale" type="number" min="0.1" max="3" step="0.05" value="0.8">
+                  </div>
+                  <div class="field">
+                    <label for="templateEndingDuration">时长</label>
+                    <input id="templateEndingDuration" type="text" value="1.8s">
+                  </div>
+                </div>
+              </section>
+            </div>
+            <div class="template-actions">
+              <button id="saveJianyingTemplateBtn" class="secondary-btn compact-btn" type="button">保存模板</button>
+              <button id="reloadJianyingTemplateBtn" class="text-btn" type="button">重新读取</button>
+            </div>
+          </details>
+
           <footer class="actions">
             <button id="runBtn" class="primary-btn" type="button">开始执行</button>
             <button id="recordBtn" class="secondary-btn" type="button">录制并拉取视频</button>

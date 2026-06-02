@@ -135,6 +135,22 @@ powershell -ExecutionPolicy Bypass -File .\tools\ime-tap-playback.ps1 -Layout qw
 
 启动方式：
 
+方式一：直接双击项目根目录里的脚本：
+
+```text
+启动控制台.vbs
+```
+
+停止时双击：
+
+```text
+停止控制台.vbs
+```
+
+`启动控制台.vbs` 会隐藏后台启动 Node 服务，并自动打开浏览器到控制台页面。
+
+方式二：命令行启动：
+
 ```powershell
 cd D:\Develop\Code\XunfeiVideo\console
 npm.cmd install

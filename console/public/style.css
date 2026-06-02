@@ -464,6 +464,92 @@ select:focus {
   transform: translateX(16px);
 }
 
+.template-panel {
+  margin: 0 0 18px;
+  border: 1px solid var(--line);
+  background: #fbfcfb;
+}
+
+.template-panel summary {
+  cursor: pointer;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--accent-deep);
+  font-weight: 900;
+}
+
+.template-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 48px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: #f8faf9;
+}
+
+.template-sections {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.template-group {
+  border: 1px solid #d5dde2;
+  background: white;
+}
+
+.template-group-head {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: #f4f7f6;
+}
+
+.template-group-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  align-items: end;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: 116px repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  align-items: end;
+}
+
+.template-toggle {
+  min-height: 42px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  background: white;
+}
+
+.template-group-head .template-toggle {
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-weight: 900;
+}
+
+.wide-field {
+  grid-column: span 2;
+}
+
+.template-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
 .actions {
   display: flex;
   gap: 12px;
@@ -598,6 +684,19 @@ pre {
   .task-tools {
     grid-template-columns: 1fr 1fr;
   }
+
+  .template-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .template-group-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .template-toggle,
+  .wide-field {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 560px) {
@@ -630,6 +729,14 @@ pre {
   }
 
   .task-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .template-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .template-group-grid {
     grid-template-columns: 1fr;
   }
 }
